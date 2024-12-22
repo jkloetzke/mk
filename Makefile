@@ -285,8 +285,9 @@ regen_compile_commands_json:
 
 # Build a typical sysroot for use with external tooling such as a
 # L4Re-specific cross-compiler
-SYSROOT_LIBS = libgcc_s lib4re lib4re-c lib4re-c-util lib4re-util-nortti lib4re-util libc libc_be_l4re libc_be_l4refile libc_be_socket_noop libc_be_sig libc_be_sig_noop libc_support_misc libdl libl4re-vfs.o libl4sys libl4util libld-l4 libm_support libpthread libc_nonshared.p libssp_nonshared.p libmount
-sysroot: $(foreach p,l4re l4re_c l4re_vfs l4sys l4util ldso libc_backends uclibc,pkg/l4re-core/$(p))
+SYSROOT_LIBS = libc libdl libld-l4 libm_support libc_nonshared.p
+OUTPUT_FORMAT = $(CC) $(CFLAGS) -Wl,--verbose 2>&1 | $(SED) -n '/OUTPUT_FORMAT/,/)/p'
+sysroot: $(foreach p,ldso libc_backends uclibc,pkg/l4re-core/$(p))
 	$(GEN_MESSAGE)
 	$(VERBOSE)$(RM) -r $(OBJ_DIR)/sysroot
 	$(VERBOSE)$(MKDIR) $(OBJ_DIR)/sysroot
@@ -304,7 +305,11 @@ sysroot: $(foreach p,l4re l4re_c l4re_vfs l4sys l4util ldso libc_backends uclibc
 	$(VERBOSE)$(CP) -Lr $(OBJ_DIR)/lib/$(BUILD_ARCH)_$(CPU)/std/plain/crt* $(OBJ_DIR)/sysroot/usr/lib
 	$(VERBOSE)$(CP) -Lr $(wildcard $(foreach l,$(SYSROOT_LIBS),$(OBJ_DIR)/lib/$(BUILD_ARCH)_$(CPU)/std/l4f/$(l).a $(OBJ_DIR)/lib/$(BUILD_ARCH)_$(CPU)/std/l4f/$(l).so)) \
 	                    $(OBJ_DIR)/sysroot/usr/lib
-	$(VERBOSE)mv $(OBJ_DIR)/sysroot/usr/lib/libc_nonshared.p.a  $(OBJ_DIR)/sysroot/usr/lib/libc_nonshared.a
+	$(VERBOSE)mv $(OBJ_DIR)/sysroot/usr/lib/libc.so  $(OBJ_DIR)/sysroot/usr/lib/libc.so.1
+	$(VERBOSE)$(OUTPUT_FORMAT) > $(OBJ_DIR)/sysroot/usr/lib/libc.so
+	$(VERBOSE)echo "GROUP ( libc.so.1 libc_nonshared.p.a AS_NEEDED ( libld-l4.so.1 ) )" >> $(OBJ_DIR)/sysroot/usr/lib/libc.so
+	$(VERBOSE)mv $(OBJ_DIR)/sysroot/usr/lib/libld-l4.so  $(OBJ_DIR)/sysroot/usr/lib/libld-l4.so.1
+	$(VERBOSE)ln -sf libld-l4.so.1 $(OBJ_DIR)/sysroot/usr/lib/libld-l4.so
 	$(VERBOSE)mv $(OBJ_DIR)/sysroot/usr/lib/libm_support.a  $(OBJ_DIR)/sysroot/usr/lib/libm.a
 	$(VERBOSE)mv $(OBJ_DIR)/sysroot/usr/lib/libm_support.so $(OBJ_DIR)/sysroot/usr/lib/libm.so
 
