@@ -35,7 +35,11 @@ INSTALLFILE_LIB         ?= $(if $(call do_strip,$(1)),                      \
                                 $(INSTALL) -m 644 $(1) $(2))
 INSTALLFILE_LIB_LOCAL   ?= $(if $(call do_strip,$(1)),                      \
                                 $(call copy_stripped_binary,$(1),$(2),644), \
-                                $(LN) -sf $(call absfilename,$(1)) $(2))
+                                $(LN) -sf $(call absfilename,$(1)) $(2));   \
+                           for v in $$(SONAME) ; do                         \
+                             vv+=".$$$$v" ;                                 \
+                             $(LN) -sf $(call absfilename,$(1)) $(2)$$$$vv ; \
+                           done
 
 INSTALLFILE		= $(INSTALLFILE_LIB)
 INSTALLDIR		= $(INSTALLDIR_LIB)
@@ -86,6 +90,10 @@ LDFLAGS += $(addprefix -L, $(L4LIBDIR))
 LDFLAGS += $(LIBCLIBDIR)
 LDFLAGS_SO += -shared $(call BID_mode_var,LDFLAGS_SO)
 
+SONAME += $(SONAME-y) $(SONAME_$(ARCH)) $(SONAME_$(ARCH)-y) \
+          $(SONAME_$(OSYSTEM)) $(SONAME_$(OSYSTEM)-y) \
+          $(SONAME_$(notdir $@)) $(SONAME_$(notdir $@)-y) $(SONAME_$(notdir $@)_$(OSYSTEM)) $(SONAME_$(notdir $@)_$(OSYSTEM)-y) \
+          $(SONAME_$(<F)_$(OSYSTEM)) $(SONAME_$(<F)_$(OSYSTEM)-y)
 
 LDSCRIPT       = $(LDS_so)
 LDSCRIPT_INCR ?= /dev/null
@@ -149,7 +157,8 @@ $(filter %.so, $(TARGET)):%.so: $(OBJS) $(LIBDEPS) $(GENERAL_D_LOC)
 	@$(LINK_SHARED_MESSAGE)
 	$(VERBOSE)$(call create_dir,$(@D))
 	$(VERBOSE)$(call MAKEDEP,$(LD)) $(BID_LINK) -MD -MF $(call BID_link_deps_file,$@) -o $@ $(LDFLAGS_SO) \
-	  $(LDFLAGS) $(OBJS) $(addprefix -PC,$(REQUIRES_LIBS))
+	  $(LDFLAGS) $(OBJS) $(addprefix -PC,$(REQUIRES_LIBS)) \
+	  $(if $(strip $(SONAME)),-soname=$@.$(firstword $(SONAME)))
 	@$(BUILT_MESSAGE)
 
 # build an object file (which looks like a lib to a later link-call), which
